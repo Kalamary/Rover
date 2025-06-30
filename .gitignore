@@ -1,2 +1,7 @@
+/.settings
+/.vscode
 /build/
 /Debug/
+/STM32Make.make
+/STM32-for-VSCode.config.yaml
+/.stm32env
