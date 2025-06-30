@@ -60,7 +60,7 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 extern TIM_HandleTypeDef htim3;
 /* USER CODE BEGIN EV */
 extern servocontrol_t servo1;
-extern uint8_t tim3_loop_count = 0; 
+uint8_t tim3_loop_count = 0; 
 /* USER CODE END EV */
 
 /******************************************************************************/
