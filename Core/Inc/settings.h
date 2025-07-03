@@ -2,9 +2,9 @@
 #define INC_SETTINGS_H_
 
 // Select the microcontroller number (uncomment needed)
-#define WHEEL_1
+// #define WHEEL_1
 // #define WHEEL_2
-// #define WHEEL_3
+#define WHEEL_3
 // #define WHEEL_4
 // #define WHEEL_5
 // #define WHEEL_6
@@ -68,7 +68,7 @@
 #define REVERCE 0
 
 // CPR - counts per revolution. If you are using both channels and rising/falling edges of encoder, CPR=PPR*4.
-#define CPR 1999
+#define E_CPR 1999
 
 // Min and max duty-cycle of PWM
 #define MIN_DUTY 0
@@ -110,7 +110,7 @@
 #define REVERCE 0
 
 // CPR - counts per revolution. If you are using both channels and rising/falling edges of encoder, CPR=PPR*4.
-#define CPR 1999
+#define E_CPR 1999
 
 // Min and max duty-cycle of PWM
 #define MIN_DUTY 0
@@ -152,7 +152,7 @@
 #define REVERCE 0
 
 // CPR - counts per revolution. If you are using both channels and rising/falling edges of encoder, CPR=PPR*4.
-#define CPR 1999
+#define E_CPR 1999
 
 // Min and max duty-cycle of PWM
 #define MIN_DUTY 0
@@ -194,7 +194,7 @@
 #define REVERCE 0
 
 // CPR - counts per revolution. If you are using both channels and rising/falling edges of encoder, CPR=PPR*4.
-#define CPR 1999
+#define E_CPR 1999
 
 // Min and max duty-cycle of PWM
 #define MIN_DUTY 0
@@ -236,7 +236,7 @@
 #define REVERCE 0
 
 // CPR - counts per revolution. If you are using both channels and rising/falling edges of encoder, CPR=PPR*4.
-#define CPR 1999
+#define E_CPR 1999
 
 // Min and max duty-cycle of PWM
 #define MIN_DUTY 0

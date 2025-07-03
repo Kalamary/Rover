@@ -60,7 +60,7 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 extern TIM_HandleTypeDef htim3;
 /* USER CODE BEGIN EV */
 extern servocontrol_t servo1;
-extern uint8_t tim3_loop_count = 0;
+uint8_t tim3_loop_count = 0;
 
 
 /* USER CODE END EV */
@@ -225,10 +225,10 @@ void TIM3_IRQHandler(void)
   /* USER CODE BEGIN TIM3_IRQn 0 */
 
   /* USER CODE END TIM3_IRQn 0 */
-  
-  // Сюда ток
-  servo_positionLoop(&servo1);
-  if(tim3_loop_count >= 3) {
+  HAL_TIM_IRQHandler(&htim3);
+  /* USER CODE BEGIN TIM3_IRQn 1 */
+   servo_positionLoop(&servo1);
+  if(tim3_loop_count == 3) {
     tim3_loop_count = 0;
     servo_velocityLoop(&servo1);
   }
