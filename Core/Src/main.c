@@ -61,7 +61,7 @@ servocontrol_t servo1;
 volatile float currentFeedback;
 float voltage;
 const float zeroVoltage = 1.65;
-uint32_t ADC = 0;
+float ADC = 0;
 const uint32_t ADCrange = 4095;
 uint8_t tim3_current_count = 0;
 
@@ -92,11 +92,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
       if (tim3_current_count >= 10) {
         tim3_current_count = 0;
-        HAL_ADC_Start(&hadc1);                // запускаем преобразование сигнала АЦП
-        HAL_ADC_PollForConversion(&hadc1, 9); // ожидаем окончания преобразования
+        HAL_ADC_Start(&hadc1);               // запускаем преобразование сигнала АЦП
+        HAL_ADC_PollForConversion(&hadc1, 9);
         ADC = HAL_ADC_GetValue(&hadc1);
-        voltage = (ADC * 3.3)/ADCrange;
-        currentFeedback = (voltage - zeroVoltage) * 5;
+        voltage = (ADC * 3.25f)/4095.0f;
+        currentFeedback = (voltage - 1.65f) * 5.0f;
       } else { tim3_current_count++; }
     }
   }
@@ -153,7 +153,6 @@ int main(void)
   __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
   HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL);
   HAL_ADCEx_Calibration_Start(&hadc1); // Калибровка ADC
-
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2); // инициализация PWM
   if (SERVO_FLAG)
   {
@@ -161,7 +160,7 @@ int main(void)
   }
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_Base_Start_IT(&htim4);
-
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -250,7 +249,7 @@ static void MX_ADC1_Init(void)
   */
   hadc1.Instance = ADC1;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
@@ -262,9 +261,9 @@ static void MX_ADC1_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Channel = ADC_CHANNEL_7;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
