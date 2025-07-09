@@ -1,4 +1,0 @@
-{
-    "cortex-debug.armToolchainPath": "D:\\Tools_Libs\\xpack-arm-none-eabi-gcc-13.2.1-1.1\\bin",
-    "cortex-debug.openocdPath": "D:\\Tools_Libs\\OpenOCD-20240820-0.12.0\\bin\\openocd.EXE"
-}

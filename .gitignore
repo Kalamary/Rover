@@ -5,3 +5,10 @@
 /STM32Make.make
 /STM32-for-VSCode.config.yaml
 /.stm32env
+/.cproject.bak
+/.mxproject
+/.project.bak
+/Makefile
+/MCUconfig.cfg
+/openocd.cfg
+/Rover.ioc
