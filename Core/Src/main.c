@@ -61,7 +61,8 @@ servocontrol_t servo1;
 volatile float currentFeedback;
 float voltage;
 const float zeroVoltage = 1.65;
-float ADC = 0;
+volatile uint16_t ADC = 0;
+float current;
 const uint32_t ADCrange = 4095;
 uint8_t tim3_current_count = 0;
 
@@ -86,19 +87,35 @@ void USBRxHandler(uint8_t *buf, uint16_t len)
   return;
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
   {
-    if (htim->Instance == TIM3) // check if the interrupt comes from TIM1
+    if(hadc->Instance == ADC1) //check if the interrupt comes from ACD1
     {
-      if (tim3_current_count >= 10) {
-        tim3_current_count = 0;
-        HAL_ADC_Start(&hadc1);               // запускаем преобразование сигнала АЦП
-        HAL_ADC_PollForConversion(&hadc1, 9);
         ADC = HAL_ADC_GetValue(&hadc1);
-        voltage = (ADC * 3.25f)/4095.0f;
-        currentFeedback = (voltage - 1.65f) * 5.0f;
-      } else { tim3_current_count++; }
+        
     }
+    
+    
+    // if (htim->Instance == TIM3) // check if the interrupt comes from TIM1
+    // {
+    //   if (tim3_current_count >= 10) {
+    //     tim3_current_count = 0;
+    //     HAL_ADC_Start(&hadc1);               // запускаем преобразование сигнала АЦП
+    //     HAL_ADC_PollForConversion(&hadc1, 9);
+    //     ADC = HAL_ADC_GetValue(&hadc1);
+    //     if(servo_getDirection(&servo1) == -1) {
+    //       voltage = (ADC * 3.25f)/4095.0f;
+    //     } else {
+    //       voltage = ((ADC - 2050) * 3.25f)/4095.0f;
+    //     }
+    //     current = (voltage - 1.65f) * 5.0f;
+    //     if(current < 0) {
+    //       currentFeedback = -current;
+    //     } else { 
+    //       currentFeedback = current;
+    //     }
+    //   } else { tim3_current_count++; }
+    // }
   }
 /* USER CODE END PFP */
 
@@ -144,6 +161,7 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
+  // �?нициализация контуров
   servo_baseInit(&servo1, Double, MOTOR_SPEED, GEAR_RATIO, REVERCE);
   servo_encoderInit(&servo1, &htim1, E_CPR);
   servo_driverInit(&servo1, &htim2, 2, DIR1_GPIO_Port, DIR1_Pin, DIR2_GPIO_Port, DIR2_Pin, MIN_DUTY, MAX_DUTE);
@@ -152,12 +170,13 @@ int main(void)
 
   __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
   HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL);
+  
   HAL_ADCEx_Calibration_Start(&hadc1); // Калибровка ADC
+  HAL_ADC_Start_IT(&hadc1);
+
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2); // инициализация PWM
-  if (SERVO_FLAG)
-  {
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); // инициализация PWM
-  }
+  if (SERVO_FLAG) { HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); } // инициализация PWM
+
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_Base_Start_IT(&htim4);
   
@@ -171,7 +190,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
+    
     servo_controlVelocity(&servo1, VELvalue);            // 0 - 15
     htim4.Instance->CCR1 = PWM_servo + SERVO_ADJUSTMENT; // 0 - 180
 
@@ -251,7 +270,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_CC2;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -344,8 +363,8 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 4-1;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Prescaler = 2-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2;
   htim2.Init.Period = 1000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -362,7 +381,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
