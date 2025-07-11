@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "settings.h"
@@ -26,6 +27,7 @@
 #include <stdio.h>
 #include "string.h"
 #include "usbd_cdc_if.h"
+#include "global_vars.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,8 +72,6 @@ uint8_t tim3_current_count = 0;
 // uint8_t USBRXDataLength = 0;
 // char USBRXCommandBuffer[64];
 /* USER CODE END PV */
-// uint32_t last_command_time = 0;  
-// uint32_t last_telemetry_time = 0;  // Для периодической отправки телеметрии
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -81,63 +81,74 @@ static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_ADC1_Init(void);
-
 /* USER CODE BEGIN PFP */
 
-void USBRxHandler(uint8_t *buf, uint16_t len) {
-{
-
+void USBRxHandler(uint8_t *buf, uint16_t len) { {
   char command[20];
-    char response[50];
-    
-    // Проверка на минимальную длину команды
-    if (len < 1) return;
-    
-    // Копирование команды с защитой от переполнения
-    uint16_t copy_len = (len < sizeof(command)) ? len : sizeof(command) - 1;
-    memcpy(command, buf, copy_len);
-    command[copy_len] = '\0';  // Гарантированное завершение строки
-    
-    // Remove trailing newline characters
-    char *ptr = command;
-    while (*ptr) {
-      if (*ptr == '\r' || *ptr == '\n') {
-        *ptr = '\0';
-        break;
-      }
-      ptr++;
+  char response[50];
+
+  // Проверка на минимальную длину команды
+  if (len < 1) return;
+
+  // Копирование команды с защитой от переполнения
+  uint16_t copy_len = (len < sizeof(command)) ? len : sizeof(command) - 1;
+  memcpy(command, buf, copy_len);
+  command[copy_len] = '\0';  // Гарантированное завершение строки
+
+  // Remove trailing newline characters
+  char *ptr = command;
+  while (*ptr) {
+    if (*ptr == '\r' || *ptr == '\n') {
+      *ptr = '\0';
+      break;
     }
-    // Process STOP command
-    if (strcmp(command, "STOP") == 0) {
-      servo_controlVelocity(&servo1, 0.0f);
-      snprintf(response, sizeof(response), "Motor stopped\r\n");
+    ptr++;
+  }
+  // Process STOP command
+  if (strcmp(command, "STOP") == 0) {
+    servo_controlVelocity(&servo1, 0.0f);
+    snprintf(response, sizeof(response), "Motor stopped\r\n");
+  }
+  // Process forward/backward commands
+  else if (command[0] == 'F' || command[0] == 'B') {
+    char* endptr;
+    float speed = strtof(command + 1, &endptr);
+    // Validate number conversion
+    if (endptr == command + 1) {
+      snprintf(response, sizeof(response), "Error: Invalid speed format\r\n");
     }
-    // Process forward/backward commands
-    else if (command[0] == 'F' || command[0] == 'B') {
-      char* endptr;
-      float speed = strtof(command + 1, &endptr);
-      // Validate number conversion
-      if (endptr == command + 1) {
-        snprintf(response, sizeof(response), "Error: Invalid speed format\r\n");
-      } 
-      else {
-        // Apply direction
-        if (command[0] == 'B') speed = -speed;
-        
-        // Set velocity (rad/s)
-        servo_controlVelocity(&servo1, speed);
-        snprintf(response, sizeof(response), "Speed set: %.2f rad/s\r\n", speed);
-      }
-    }
-    // Unknown command
     else {
-      snprintf(response, sizeof(response), "Unknown command: %s\r\n", command);
+      // Apply direction
+      if (command[0] == 'B') speed = -speed;
+
+      // Set velocity (rad/s)
+      servo_controlVelocity(&servo1, speed);
+      snprintf(response, sizeof(response), "Speed set: %.2f rad/s\r\n", encoder_getVelocity(&servo1.encoder, Angular));
     }
-    // Send response
-    CDC_Transmit_FS((uint8_t*)response, strlen(response));
+  }
+  // Unknown command
+  else {
+    snprintf(response, sizeof(response), "Unknown command: %s\r\n", command);
+  }
+  // Send response
+  // CDC_Transmit_FS((uint8_t*)response, strlen(response));
   }
   return;
 }
+
+void send_usb_data(void) {
+  char buffer[64];
+
+  // Формируем строку с данными
+  uint16_t len = snprintf(buffer, sizeof(buffer),
+      "Angle=%.2f, Vel=%.2f\r\n",
+      encoder_getAngle(&servo1.encoder),
+      encoder_getVelocity(&servo1.encoder, Angular));
+
+  // Отправка по USB
+  CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
+}
+
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
   {
@@ -160,7 +171,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     //     current = (voltage - 1.65f) * 5.0f;
     //     if(current < 0) {
     //       currentFeedback = -current;
-    //     } else { 
+    //     } else {
     //       currentFeedback = current;
     //     }
     //   } else { tim3_current_count++; }
@@ -175,9 +186,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
 
@@ -220,7 +231,7 @@ int main(void)
   __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
 
   HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL);
-  
+
   HAL_ADCEx_Calibration_Start(&hadc1); // Калибровка ADC
   HAL_ADC_Start_IT(&hadc1);
 
@@ -230,7 +241,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_Base_Start_IT(&htim4);
   encoder_reset(&servo1.encoder);
-  
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -239,10 +250,14 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-    // servo_controlVelocity(&servo1, VELvalue);      // 0 - 15
-    //     htim4.Instance->CCR1 = PWM_servo + 27;     // 0 - 180
     /* USER CODE BEGIN 3 */
-    
+
+    if(usb_ready_flag) {
+      send_usb_data();
+      usb_ready_flag = 0;
+    }
+
+    // CDC_Transmit_FS((uint8_t*)response, strlen(response));
     // servo_controlVelocity(&servo1, VELvalue);              // 0 - 15
     // htim4.Instance->CCR1 = PWM_servo + SERVO_ADJUSTMENT;   // 0 - 180
 
@@ -252,9 +267,9 @@ int main(void)
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -262,8 +277,8 @@ void SystemClock_Config(void)
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
+  * in the RCC_OscInitTypeDef structure.
+  */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
@@ -277,8 +292,9 @@ void SystemClock_Config(void)
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
@@ -391,13 +407,14 @@ static void MX_TIM1_Init(void)
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
+
 }
 
 /**
- * @brief TIM2 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM2_Init(void)
 {
 
@@ -449,13 +466,14 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
+
 }
 
 /**
- * @brief TIM3 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM3_Init(void)
 {
 
@@ -470,9 +488,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 72 - 1;
+  htim3.Init.Prescaler = 72-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 1000 - 1;
+  htim3.Init.Period = 1000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -493,13 +511,14 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+
 }
 
 /**
- * @brief TIM4 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM4_Init(void)
 {
 
@@ -515,9 +534,9 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 800 - 1;
+  htim4.Init.Prescaler = 800-1;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 1800 - 1;
+  htim4.Init.Period = 1800-1;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -551,18 +570,19 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 2 */
   HAL_TIM_MspPostInit(&htim4);
+
 }
 
 /**
- * @brief GPIO Initialization Function
- * @param None
- * @retval None
- */
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  /* USER CODE BEGIN MX_GPIO_Init_1 */
-  /* USER CODE END MX_GPIO_Init_1 */
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
@@ -570,17 +590,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, DIR1_Pin | DIR2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, DIR1_Pin|DIR2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : DIR1_Pin DIR2_Pin */
-  GPIO_InitStruct.Pin = DIR1_Pin | DIR2_Pin;
+  GPIO_InitStruct.Pin = DIR1_Pin|DIR2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-  /* USER CODE END MX_GPIO_Init_2 */
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -588,28 +608,29 @@ static void MX_GPIO_Init(void)
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
+  while (1) {
+    // HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+    // HAL_Delay(100);
   }
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */

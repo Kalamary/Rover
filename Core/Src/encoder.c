@@ -41,7 +41,7 @@ void encoder_updatePosition(encoder_t *encoder) {
 // Calculates current angular velocity in rad/s. Must be called with a specified period (dt)
 void encoder_updateVelocity(encoder_t *encoder) {
 	encoder->angularVelocity = (encoder->angle - encoder->previousAngle) / encoder->dt;		// rad/s
-	encoder->linearVelocity = encoder->angularVelocity * 0.1;	// m/s
+	encoder->linearVelocity = encoder->angularVelocity * 0.1;								// m/s
 	encoder->previousAngle = encoder->angle;
 }
 
@@ -57,6 +57,19 @@ void encoder_reset(encoder_t *encoder) {
 float encoder_getAngle(encoder_t *encoder){
 	return encoder->angle;
 }
-float encoder_getVelocity(encoder_t *encoder){
-	return encoder->angularVelocity;
+
+// returns the speed in two modes
+// - Angular
+// - Linear
+float encoder_getVelocity(encoder_t *encoder, enum Velocity mode){
+	float result = 0.0f; 
+	switch (mode) {
+	case Angular:
+		result = encoder->angularVelocity;
+		break;
+	case Linear:
+		result = encoder->linearVelocity;
+		break;
+	}
+	return result;
 }

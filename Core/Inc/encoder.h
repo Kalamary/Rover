@@ -13,6 +13,10 @@
 
 #define M_PI 3.14159265358979323846
 
+enum Velocity {
+	Angular, Linear
+};
+
 typedef struct {
 	// Handler of timer in encoder mode
 	TIM_HandleTypeDef *htim;
@@ -40,5 +44,5 @@ void encoder_updateVelocity(encoder_t *encoder);
 void encoder_reset(encoder_t *encoder);
 
 float encoder_getAngle(encoder_t *encoder);
-float encoder_getVelocity(encoder_t *encoder);
+float encoder_getVelocity(encoder_t *encoder, enum Velocity mode);
 

@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <servocontroller.h>
+#include "global_vars.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,8 +63,9 @@ extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim3;
 /* USER CODE BEGIN EV */
 extern servocontrol_t servo1;
-uint8_t tim3_loop_count = 0;
-
+static uint8_t tim3_loop_count = 0;
+static uint8_t usb_loop_count = 0;
+volatile uint8_t usb_ready_flag = 0;
 
 /* USER CODE END EV */
 
@@ -257,8 +259,13 @@ void TIM3_IRQHandler(void)
   /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim3);
   /* USER CODE BEGIN TIM3_IRQn 1 */
-   servo_positionLoop(&servo1);
-  if(tim3_loop_count == 3) {
+
+  if(usb_loop_count >= 100) {
+    usb_ready_flag = 1;
+  }
+  
+  servo_positionLoop(&servo1);
+  if(tim3_loop_count >= 3) {
     tim3_loop_count = 0;
     servo_velocityLoop(&servo1);
   }

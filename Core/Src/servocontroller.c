@@ -189,7 +189,7 @@ void servo_positionLoop(servocontrol_t *servo) {
  */
 void servo_velocityLoop(servocontrol_t *servo) {
 	encoder_updateVelocity(&servo->encoder);
-	pid_calculate(&servo->pid_velocity, servo->velocitySetpoint, encoder_getVelocity(&servo->encoder));
+	pid_calculate(&servo->pid_velocity, servo->velocitySetpoint, encoder_getVelocity(&servo->encoder, Angular));
 	switch (servo->controllerLoops) {
 	case Single:
 		pid_reset(&servo->pid_velocity);
